@@ -1,7 +1,6 @@
 import pandas as pd
 import tiktoken
 from typing import List, Dict
-import json
 
 class TokenChunker:
     def __init__(self, target_chunk_size: int = 1000, overlap: int = 250):
@@ -61,17 +60,16 @@ class TokenChunker:
         
         return chunks
     
-    def process_csv(self, input_file: str, content_column: str = 'file_content', output_file: str = None) -> Dict:
+    def process_csv(self, input_file: str, content_column: str = 'file_content') -> pd.DataFrame:
         """
         Process a CSV file and split its contents into chunks.
         
         Args:
             input_file (str): Path to the input CSV file
             content_column (str): Name of the column containing the content to process (default: 'file_content')
-            output_file (str, optional): Path to save the output JSON file
         
         Returns:
-            Dict: Dictionary containing chunk information
+            pd.DataFrame: DataFrame containing chunks and their information
         """
         # Read the CSV file
         df = pd.read_csv(input_file)
@@ -79,16 +77,8 @@ class TokenChunker:
         # Add token count column
         df['token_count'] = df[content_column].apply(self.count_tokens)
         
-        # Initialize results dictionary
-        results = {
-            "chunks": [],
-            "statistics": {
-                "total_rows": len(df),
-                "total_chunks": 0,
-                "average_chunk_size": 0,
-                "total_tokens": df['token_count'].sum()
-            }
-        }
+        # Create a list to store all chunks
+        all_chunks = []
         
         # Process each row
         for idx, row in df.iterrows():
@@ -98,44 +88,38 @@ class TokenChunker:
             # Add chunks to results
             for chunk_idx, chunk in enumerate(chunks):
                 chunk_info = {
-                    "row_index": idx,
-                    "chunk_index": chunk_idx,
-                    "content": chunk,
-                    "token_count": self.count_tokens(chunk)
+                    'row_index': idx,
+                    'chunk_index': chunk_idx,
+                    'content': chunk,
+                    'token_count': self.count_tokens(chunk)
                 }
-                results["chunks"].append(chunk_info)
+                all_chunks.append(chunk_info)
         
-        # Update statistics
-        results["statistics"]["total_chunks"] = len(results["chunks"])
-        if results["chunks"]:
-            avg_tokens = sum(chunk["token_count"] for chunk in results["chunks"]) / len(results["chunks"])
-            results["statistics"]["average_chunk_size"] = round(avg_tokens, 2)
+        # Convert chunks to DataFrame
+        chunks_df = pd.DataFrame(all_chunks)
         
-        # Save to file if output_file is provided
-        if output_file:
-            with open(output_file, 'w', encoding='utf-8') as f:
-                json.dump(results, f, indent=2, ensure_ascii=False)
+        # Print statistics
+        print(f"\nProcessing Statistics:")
+        print(f"Total rows processed: {len(df)}")
+        print(f"Total chunks created: {len(chunks_df)}")
+        print(f"Total tokens: {df['token_count'].sum()}")
+        print(f"Average chunk size: {chunks_df['token_count'].mean():.2f} tokens")
         
-        return results
+        return chunks_df
 
 def main():
     # Example usage
     chunker = TokenChunker(target_chunk_size=1000, overlap=250)
     
     # Process your CSV file
-    results = chunker.process_csv(
+    chunks_df = chunker.process_csv(
         input_file="your_input.csv",
-        content_column="file_content",  # Default column name
-        output_file="chunks_output.json"
+        content_column="file_content"  # Default column name
     )
     
-    # Print statistics
-    stats = results["statistics"]
-    print(f"\nProcessing Statistics:")
-    print(f"Total rows processed: {stats['total_rows']}")
-    print(f"Total chunks created: {stats['total_chunks']}")
-    print(f"Total tokens: {stats['total_tokens']}")
-    print(f"Average chunk size: {stats['average_chunk_size']} tokens")
+    # You can now work with the chunks DataFrame
+    print("\nFirst few chunks:")
+    print(chunks_df.head())
 
 if __name__ == "__main__":
     main() 
