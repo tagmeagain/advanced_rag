@@ -62,14 +62,14 @@ class TokenChunker:
     
     def process_csv(self, input_file: str, content_column: str = 'file_content') -> pd.DataFrame:
         """
-        Process a CSV file and split its contents into chunks.
+        Process a CSV file and split its contents into chunks while preserving all original columns.
         
         Args:
             input_file (str): Path to the input CSV file
             content_column (str): Name of the column containing the content to process (default: 'file_content')
         
         Returns:
-            pd.DataFrame: DataFrame containing chunks and their information
+            pd.DataFrame: DataFrame containing all original columns plus chunked content
         """
         # Read the CSV file
         df = pd.read_csv(input_file)
@@ -77,7 +77,7 @@ class TokenChunker:
         # Add token count column
         df['token_count'] = df[content_column].apply(self.count_tokens)
         
-        # Create a list to store all chunks
+        # Create a list to store all chunks with their original row data
         all_chunks = []
         
         # Process each row
@@ -85,15 +85,19 @@ class TokenChunker:
             content = row[content_column]
             chunks = self.split_into_chunks(content)
             
-            # Add chunks to results
-            for chunk_idx, chunk in enumerate(chunks):
-                chunk_info = {
-                    'row_index': idx,
-                    'chunk_index': chunk_idx,
-                    'content': chunk,
-                    'token_count': self.count_tokens(chunk)
-                }
-                all_chunks.append(chunk_info)
+            # Add chunks to results while preserving all original columns
+            for chunk_idx, chunk in enumerate(chunks, 1):  # Start from 1 instead of 0
+                # Create a copy of the original row
+                chunk_row = row.to_dict()
+                
+                # Update the content column with the chunk
+                chunk_row[content_column] = chunk
+                
+                # Add chunk-specific information with formatted chunk index
+                chunk_row['chunk_index'] = f"chunk_{chunk_idx}"
+                chunk_row['chunk_token_count'] = self.count_tokens(chunk)
+                
+                all_chunks.append(chunk_row)
         
         # Convert chunks to DataFrame
         chunks_df = pd.DataFrame(all_chunks)
@@ -103,7 +107,7 @@ class TokenChunker:
         print(f"Total rows processed: {len(df)}")
         print(f"Total chunks created: {len(chunks_df)}")
         print(f"Total tokens: {df['token_count'].sum()}")
-        print(f"Average chunk size: {chunks_df['token_count'].mean():.2f} tokens")
+        print(f"Average chunk size: {chunks_df['chunk_token_count'].mean():.2f} tokens")
         
         return chunks_df
 
@@ -120,6 +124,9 @@ def main():
     # You can now work with the chunks DataFrame
     print("\nFirst few chunks:")
     print(chunks_df.head())
+    
+    # Save the results if needed
+    chunks_df.to_csv("chunked_output.csv", index=False)
 
 if __name__ == "__main__":
     main() 
