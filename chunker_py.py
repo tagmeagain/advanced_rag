@@ -90,8 +90,8 @@ class TokenChunker:
                 # Create a copy of the original row
                 chunk_row = row.to_dict()
                 
-                # Update the content column with the chunk
-                chunk_row[content_column] = chunk
+                # Add the chunk to a new column instead of replacing the original content
+                chunk_row['modified_chunk_content'] = chunk
                 
                 # Add chunk-specific information with formatted chunk index
                 chunk_row['chunk_index'] = f"chunk_{chunk_idx}"
