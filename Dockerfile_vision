@@ -1,0 +1,111 @@
+# Use NVIDIA CUDA base image with Ubuntu 22.04
+FROM nvidia/cuda:12.4-devel-ubuntu22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
+    git \
+    wget \
+    curl \
+    build-essential \
+    cmake \
+    ninja-build \
+    pkg-config \
+    libopenblas-dev \
+    liblapack-dev \
+    libhdf5-dev \
+    libssl-dev \
+    libffi-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libffi-dev \
+    liblzma-dev \
+    zlib1g-dev \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symbolic link for python
+RUN ln -s /usr/bin/python3.10 /usr/bin/python
+
+# Upgrade pip
+RUN python -m pip install --upgrade pip setuptools wheel
+
+# Install PyTorch 2.6.0 with CUDA support
+RUN pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu121
+
+# Install CUDA toolkit and cuDNN
+RUN pip install nvidia-cuda-runtime-cu12 nvidia-cuda-cupti-cu12 nvidia-cudnn-cu12
+
+# Install flash-attention and related libraries
+RUN pip install flash-attn --no-build-isolation
+
+# Install deepspeed with CUDA support
+RUN pip install deepspeed
+
+# Install transformers and related libraries
+RUN pip install transformers[torch] accelerate
+
+# Install sentence-transformers and related libraries
+RUN pip install sentence-transformers
+
+# Install PEFT for parameter efficient fine-tuning
+RUN pip install peft
+
+# Install datasets library
+RUN pip install datasets
+
+# Install SWIFT for fine-tuning
+RUN pip install swift
+
+# Install additional useful libraries
+RUN pip install \
+    scikit-learn \
+    numpy \
+    pandas \
+    matplotlib \
+    seaborn \
+    tqdm \
+    tensorboard \
+    wandb \
+    jupyter \
+    ipykernel \
+    psutil \
+    nvidia-ml-py3 \
+    pynvml
+
+# Install development tools
+RUN pip install \
+    black \
+    flake8 \
+    isort \
+    mypy \
+    pytest \
+    pytest-cov
+
+# Create working directory
+WORKDIR /workspace
+
+# Copy requirements and install any additional dependencies
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# Copy project files
+COPY . .
+
+# Set default command
+CMD ["/bin/bash"] 
